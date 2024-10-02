@@ -1,0 +1,71 @@
+name: msvc-static
+
+on: [push, workflow_dispatch]
+
+jobs:
+  msvc_static_qt:
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@v4.2.1
+    - uses: actions/setup-python@v5.2.0
+      with:
+        python-version: '3.10'
+    - run: python --version
+    - name: Setup the compiler
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with:
+        arch: 'x64'
+    - name: Install ninja-build tool
+      uses: seanmiddleditch/gha-setup-ninja@v5
+
+    - name: Clone Qt repo and its submodules
+      working-directory: ${{ runner.workspace }}
+      run: |
+        # Clone Qt6 repo
+        git clone https://code.qt.io/qt/qt5.git -b v6.8.0 qt-source
+        cd qt-source
+        perl init-repository.pl
+
+    - name: create build directory
+      working-directory: ${{ runner.workspace }}
+      run: mkdir qt-build
+
+    - name: configure Qt for static build
+      working-directory: ${{ runner.workspace }}/qt-build
+      run: >
+        ..\qt-source\configure.bat -debug-and-release -static -static-runtime -no-pch -optimize-size -platform win32-msvc
+        -prefix "..\qt6-win64-vc2022-static" -confirm-license
+        -no-feature-accessibility
+        -no-feature-valgrind
+        -no-feature-windeployqt
+        -no-feature-appstore-compliant
+        -no-feature-assistant
+        -no-feature-example-hwr
+        -skip qtopcua,qtgrpc,qt3d
+        -- -DFEATURE_cxx20=ON
+
+    - name: build qt
+      working-directory: ${{ runner.workspace }}/qt-build
+      run: cmake --build . --parallel 4
+
+    - name: install qt to temp dir
+      working-directory: ${{ runner.workspace }}/qt-build
+      run: cmake --install .
+
+    - name: Package binaries
+      # Create archive of the pre-built Qt binaries
+      run: 7z a qt6_680_win64_vc2022_static.zip ..\qt6-win64-vc2022-static
+
+    - name: Upload zip
+      uses: actions/upload-artifact@v4.4.2
+      with:
+        overwrite: true
+        name: qt6_680_win64_vc2022_static
+        path: qt6_680_win64_vc2022_static.zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v2.0.8
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: qt6_680_win64_vc2022_static.zip
