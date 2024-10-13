@@ -1,0 +1,73 @@
+From 4f4a69dcb7080cb584ae9a0693717c4247143673 Mon Sep 17 00:00:00 2001
+From: microcai <microcaicai@gmail.com>
+Date: Sun, 13 Oct 2024 19:55:40 +0800
+Subject: [PATCH] shadow clone for submodules
+
+---
+ init-repository.pl | 27 ++++++++++++++++++++++-----
+ 1 file changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/init-repository.pl b/init-repository.pl
+index 3a5f26f6..aaa3a27d 100755
+--- a/init-repository.pl
++++ b/init-repository.pl
+@@ -65,6 +65,9 @@ Options:
+         be rebased. With --no-update, the branches will be checked out, but
+         their heads will not move.
+ 
++    --shallow
++        Creates shallow submodules.
++
+     --ignore-submodules
+         Set git config to ignore submodules by default when doing operations
+         on the qt5 repo, such as `pull', `fetch', `diff' etc.
+@@ -196,6 +199,7 @@ sub parse_arguments
+     GetOptions(
+         'alternates=s'      =>  \$self->{qw{ alternates        }},
+         'branch'            =>  \$self->{qw{ branch            }},
++        'shallow'           =>  \$self->{qw{ shallow           }},
+         'codereview-username=s' => \$self->{qw{ codereview-username }},
+         'copy-objects'      =>  \$self->{qw{ detach-alternates }},
+         'force|f'           =>  \$self->{qw{ force             }},
+@@ -218,6 +222,10 @@ sub parse_arguments
+     ) || printUsage(2);
+     @ARGV && printUsage(2);
+ 
++    if ($self->{'shallow'} && $self->{'branch'}) {
++        die("Error: --shallow and --branch cannot be used together.\n");
++    }
++
+     # Replace any double trailing slashes from end of mirror
+     $self->{'mirror-url'} =~ s{//+$}{/};
+ 
+@@ -516,13 +524,22 @@ sub git_clone_one_submodule
+     }
+ 
+     if ($do_clone) {
+-        if ($branch) {
+-            push @reference_args, '--branch', $branch;
++        if ($self->{shallow}) {
++            if ($mirror) {
++                $self->exe('git', 'config', "submodule.$submodule.url", $mirror);
++                push @reference_args, '--depth', '1', '--no-recommend-shallow';
++            }
++            $self->exe('git', 'config', "submodule.$submodule.shallow", 'true');
++            $self->exe('git', 'submodule', 'update', @reference_args, $submodule);
+         } else {
+-            push @reference_args, '--no-checkout';
++            if ($branch) {
++                push @reference_args, '--branch', $branch;
++            } else  {
++                push @reference_args, '--no-checkout';
++            }
++            $self->exe('git', 'clone', @reference_args,
++                    ($mirror ? $mirror : $url), $submodule);
+         }
+-        $self->exe('git', 'clone', @reference_args,
+-                   ($mirror ? $mirror : $url), $submodule);
+     }
+ 
+     my $orig_cwd = getcwd();
+-- 
+2.47.0
+

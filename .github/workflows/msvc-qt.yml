@@ -23,6 +23,7 @@ jobs:
             msvc: msvc2019
 
     steps:
+    - uses: actions/checkout@v4
     - uses: actions/setup-python@v5.2.0
     - run: python --version
     - name: Setup the compiler target win64
@@ -54,7 +55,8 @@ jobs:
         # Clone Qt6 repo
         git clone https://github.com/qt/qt5.git -b v6.8.0 --depth 1 qt-source
         cd qt-source
-        perl init-repository.pl --mirror https://github.com/qt/
+        git apply ${{ github.workspace }}/0001-shadow-clone-for-submodules.patch
+        perl init-repository.pl --shallow --mirror https://github.com/qt/
 
     - name: create build directory
       working-directory: ${{ runner.workspace }}
