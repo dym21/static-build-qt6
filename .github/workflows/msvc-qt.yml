@@ -79,7 +79,7 @@ jobs:
         -no-feature-qdbus
         -no-feature-qtdiag
         -no-feature-qtplugininfo
-        -skip qtopcua,qtgrpc,qt3d,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects
+        -skip qtopcua,qtgrpc,qt3d,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects,qtpim,qtspeech,qtfeedback,qtactiveqt,qtserialbus,qtserialport,tests
         -- -DFEATURE_cxx20=${{ matrix.FEATURE_cxx20 }}
 
     - name: build qt
@@ -106,5 +106,5 @@ jobs:
       with:
         overwrite: true
         name: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static
-        path: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip
+        path: ${{ runner.workspace }}/qt-release
 
