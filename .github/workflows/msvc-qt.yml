@@ -92,17 +92,19 @@ jobs:
 
     # Create archive of the pre-built Qt binaries
     - name: Package binaries
-      run: 7z a qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip ..\qt-release
-
-    - name: Upload zip
-      uses: actions/upload-artifact@v4.4.3
-      with:
-        overwrite: true
-        name: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static
-        path: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip
+      working-directory: ${{ runner.workspace }}/qt-release
+      run: 7z a ${{ github.workspace }}\\qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip .
 
     - name: Release
       uses: softprops/action-gh-release@v2.0.8
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4.4.3
+      with:
+        overwrite: true
+        name: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static
+        path: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip
+
