@@ -23,8 +23,8 @@ jobs:
             msvc: msvc2019
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5.2.0
+    - uses: actions/checkout@v4.2.2
+    - uses: actions/setup-python@v5.3.0
     - run: python --version
     - name: Setup the compiler target win64
       if: startsWith(matrix.arch, 'win64')
@@ -46,14 +46,14 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ runner.workspace }}/qt-source
-        key: qt-source-6.8.0
+        key: qt-source-6.8.1
 
     - name: Clone Qt repo and its submodules
       working-directory: ${{ runner.workspace }}
       if: steps.cache-qt-repo.outputs.cache-hit != 'true'
       run: |
         # Clone Qt6 repo
-        git clone https://github.com/qt/qt5.git -b v6.8.0 --depth 1 qt-source
+        git clone https://github.com/qt/qt5.git -b 6.8.1 --depth 1 qt-source
         cd qt-source
         git apply ${{ github.workspace }}/0001-shadow-clone-for-submodules.patch
         perl init-repository.pl --shallow --mirror https://github.com/qt/
@@ -79,7 +79,7 @@ jobs:
         -no-feature-qdbus
         -no-feature-qtdiag
         -no-feature-qtplugininfo
-        -skip qtopcua,qtgrpc,qt3d,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects,qtpim,qtspeech,qtfeedback,qtactiveqt,qtserialbus,qtserialport,tests
+        -skip qtopcua,qtgrpc,qt3d,qtcanvas3d,qtdatavis3d,qtgamepad,qtcharts,qtconnectivity,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects,qtpim,qtspeech,qtfeedback,qtactiveqt,qtserialbus,qtserialport,tests
         -- -DFEATURE_cxx20=${{ matrix.FEATURE_cxx20 }}
 
     - name: build qt
@@ -93,18 +93,18 @@ jobs:
     # Create archive of the pre-built Qt binaries
     - name: Package binaries
       working-directory: ${{ runner.workspace }}/qt-release
-      run: 7z a ${{ github.workspace }}\\qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip .
+      run: 7z a ${{ github.workspace }}\\qt6_681_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip .
 
     - name: Release
-      uses: softprops/action-gh-release@v2.0.8
+      uses: softprops/action-gh-release@v2.1.0
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip
+        files: qt6_681_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4.4.3
       with:
         overwrite: true
-        name: qt6_680_${{ matrix.arch }}-${{ matrix.msvc }}_static
+        name: qt6_681_${{ matrix.arch }}-${{ matrix.msvc }}_static
         path: ${{ runner.workspace }}/qt-release
 
