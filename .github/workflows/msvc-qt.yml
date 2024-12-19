@@ -53,7 +53,7 @@ jobs:
       if: steps.cache-qt-repo.outputs.cache-hit != 'true'
       run: |
         # Clone Qt6 repo
-        git clone https://github.com/qt/qt5.git -b 6.8.1 --depth 1 qt-source
+        git clone https://github.com/qt/qt5.git -b v6.8.1 --depth 1 qt-source
         cd qt-source
         git apply ${{ github.workspace }}/0001-shadow-clone-for-submodules.patch
         perl init-repository.pl --shallow --mirror https://github.com/qt/
