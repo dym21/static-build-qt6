@@ -1,0 +1,103 @@
+name: llvm-mingw-static
+
+on: [workflow_dispatch]
+
+jobs:
+  matrix_build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-lastet]
+
+    steps:
+    - uses: actions/checkout@v4.2.2
+    - uses: actions/setup-python@v5.3.0
+    - run: python --version
+
+    - name: Setup the llvm compiler
+      working-directory: ${{ runner.workspace }}
+      run: |
+        wget https://github.com/mstorsjo/llvm-mingw/releases/download/20241217/llvm-mingw-20241217-ucrt-ubuntu-20.04-x86_64.tar.xz
+        tar -xvf llvm-mingw-20241217-ucrt-ubuntu-20.04-x86_64.tar.xz
+        # repalce clang.cfg
+        cat << EOF > llvm-mingw-20241217-ucrt-ubuntu-20.04-x86_64/bin/mingw32-common.cfg
+        -rtlib=compiler-rt
+        -stdlib=libc++
+        -fuse-ld=lld
+        -Wl,-Bstatic -lc++ -lunwind -Wl,-Bdynamic -lucrtbase
+        EOF
+        echo "CC=${{ runner.workspace }}/llvm-mingw-20241217-ucrt-ubuntu-20.04-x86_64/bin/x86_64-w64-mingw32-clang" >> $GITHUB_ENV
+        echo "CXX=${{ matrix.cpp_compiler }}/llvm-mingw-20241217-ucrt-ubuntu-20.04-x86_64/bin/x86_64-w64-mingw32-clang++" >> $GITHUB_ENV
+
+
+    - name: Install ninja-build tool
+      uses: seanmiddleditch/gha-setup-ninja@v5
+
+    - name: Cache huge Qt repo
+      id: cache-qt-repo
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.workspace }}/qt-source
+        key: qt-source-6.8.1
+
+    - name: Clone Qt repo and its submodules
+      working-directory: ${{ runner.workspace }}
+      if: steps.cache-qt-repo.outputs.cache-hit != 'true'
+      run: |
+        # Clone Qt6 repo
+        git clone https://github.com/qt/qt5.git -b v6.8.1 --depth 1 qt-source
+        cd qt-source
+        git apply ${{ github.workspace }}/0001-shadow-clone-for-submodules.patch
+        perl init-repository.pl --shallow --mirror https://github.com/qt/
+
+    - name: create build directory
+      working-directory: ${{ runner.workspace }}
+      run: mkdir qt-build
+
+    - name: configure Qt for llvm-clang build
+      working-directory: ${{ runner.workspace }}/qt-build
+      run: >
+        ../configure -optimize-size -debug-and-release -xplatform win32-clang-g++ -device-option CROSS_COMPILE=x86_64-w64-mingw32-
+        -prefix "..\qt-release" -confirm-license
+        -no-feature-accessibility
+        -no-feature-valgrind
+        -no-feature-appstore-compliant
+        -no-feature-assistant
+        -no-feature-example-hwr
+        -no-feature-windeployqt
+        -no-feature-macdeployqt
+        -no-feature-androiddeployqt
+        -no-feature-designer
+        -no-feature-qdbus
+        -no-feature-qtdiag
+        -no-feature-qtplugininfo
+        -skip qtopcua,qtgrpc,qt3d,qtcanvas3d,qtdatavis3d,qtgamepad,qtcharts,qtconnectivity,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects,qtpim,qtspeech,qtfeedback,qtactiveqt,qtserialbus,qtserialport,tests
+        -- -DFEATURE_cxx20=ON
+
+    - name: build qt
+      working-directory: ${{ runner.workspace }}/qt-build
+      run: cmake --build . --parallel 4
+
+    - name: install qt to temp dir
+      working-directory: ${{ runner.workspace }}/qt-build
+      run: cmake --install .
+
+    # Create archive of the pre-built Qt binaries
+    - name: Package binaries
+      working-directory: ${{ runner.workspace }}/qt-release
+      run: 7z a ${{ github.workspace }}\\qt6_681_llvm-mingw64_static.zip .
+
+    - name: Release
+      uses: softprops/action-gh-release@v2.1.0
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: qt6_681_llvm-mingw64_static_static.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4.4.3
+      with:
+        overwrite: true
+        name: qt6_681_llvm-mingw64_static_static
+        path: ${{ runner.workspace }}/qt-release
+
