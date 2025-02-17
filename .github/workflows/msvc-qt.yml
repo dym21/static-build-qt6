@@ -4,27 +4,15 @@ on: [push, workflow_dispatch]
 
 jobs:
   matrix_build:
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
-        msvc: [msvc2022, msvc2019]
         arch: [win64, win32]
-        os: [windows-2019, windows-2022]
-        FEATURE_cxx20: [ON, OFF]
-        exclude:
-          - os: windows-2019
-            FEATURE_cxx20: ON
-          - os: windows-2022
-            FEATURE_cxx20: OFF
-          - os: windows-2019
-            msvc: msvc2022
-          - os: windows-2022
-            msvc: msvc2019
 
     steps:
     - uses: actions/checkout@v4.2.2
-    - uses: actions/setup-python@v5.3.0
+    - uses: actions/setup-python@v5.4.0
     - run: python --version
     - name: Setup the compiler target win64
       if: startsWith(matrix.arch, 'win64')
@@ -36,27 +24,27 @@ jobs:
       if: startsWith(matrix.arch, 'win32')
       uses: TheMrMilchmann/setup-msvc-dev@v3
       with:
-        arch: 'x86'
+        arch: 'amd64_x86'
 
     - name: Install ninja-build tool
-      uses: seanmiddleditch/gha-setup-ninja@v5
+      uses: seanmiddleditch/gha-setup-ninja@v6
 
     - name: Cache huge Qt repo
       id: cache-qt-repo
       uses: actions/cache@v4
       with:
         path: ${{ runner.workspace }}/qt-source
-        key: qt-source-6.8.1
+        key: qt-source-6.8.2
 
     - name: Clone Qt repo and its submodules
       working-directory: ${{ runner.workspace }}
       if: steps.cache-qt-repo.outputs.cache-hit != 'true'
       run: |
         # Clone Qt6 repo
-        git clone https://github.com/qt/qt5.git -b v6.8.1 --depth 1 qt-source
+        git clone git://code.qt.io/qt/qt5.git -b v6.8.2 --depth 1 qt-source
         cd qt-source
         git apply ${{ github.workspace }}/0001-shadow-clone-for-submodules.patch
-        perl init-repository.pl --shallow --mirror https://github.com/qt/
+        perl init-repository.pl --shallow
 
     - name: create build directory
       working-directory: ${{ runner.workspace }}
@@ -75,12 +63,11 @@ jobs:
         -no-feature-windeployqt
         -no-feature-macdeployqt
         -no-feature-androiddeployqt
-        -no-feature-designer
         -no-feature-qdbus
         -no-feature-qtdiag
         -no-feature-qtplugininfo
-        -skip qtopcua,qtgrpc,qt3d,qtcanvas3d,qtdatavis3d,qtgamepad,qtcharts,qtconnectivity,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects,qtpim,qtspeech,qtfeedback,qtactiveqt,qtserialbus,qtserialport,tests
-        -- -DFEATURE_cxx20=${{ matrix.FEATURE_cxx20 }}
+        -skip qtquick3dphysics,qtgraphs,qtquick3d,qtopcua,qtgrpc,qt3d,qtcanvas3d,qtdatavis3d,qtgamepad,qtcharts,qtconnectivity,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects,qtpim,qtspeech,qtfeedback,qtactiveqt,qtserialbus,qtserialport,tests
+        -- -DFEATURE_cxx20=ON
 
     - name: build qt
       working-directory: ${{ runner.workspace }}/qt-build
@@ -88,23 +75,25 @@ jobs:
 
     - name: install qt to temp dir
       working-directory: ${{ runner.workspace }}/qt-build
-      run: cmake --install .
+      run: |
+        ninja install:Debug
+        ninja install:Release
 
     # Create archive of the pre-built Qt binaries
     - name: Package binaries
       working-directory: ${{ runner.workspace }}/qt-release
-      run: 7z a ${{ github.workspace }}\\qt6_681_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip .
+      run: 7z a ${{ github.workspace }}\\qt6_682_${{ matrix.arch }}-msvc2022_static.zip .
 
     - name: Release
-      uses: softprops/action-gh-release@v2.1.0
+      uses: softprops/action-gh-release@v2.2.1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: qt6_681_${{ matrix.arch }}-${{ matrix.msvc }}_static.zip
+        files: qt6_682_${{ matrix.arch }}-msvc2022_static.zip
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4.4.3
+      uses: actions/upload-artifact@v4.6.0
       with:
         overwrite: true
-        name: qt6_681_${{ matrix.arch }}-${{ matrix.msvc }}_static
+        name: qt6_682_${{ matrix.arch }}-msvc2022_static
         path: ${{ runner.workspace }}/qt-release
 
