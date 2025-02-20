@@ -9,6 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [win64, win32]
+        buildtype: [debug-and-release, release]
 
     steps:
     - uses: actions/checkout@v4.2.2
@@ -53,7 +54,7 @@ jobs:
     - name: configure Qt for static build
       working-directory: ${{ runner.workspace }}/qt-build
       run: >
-        ..\qt-source\configure.bat -debug-and-release -static -static-runtime -no-pch -optimize-size -platform win32-msvc
+        ..\qt-source\configure.bat -${{ matrix.buildtype }} -static -static-runtime -no-pch -optimize-size -platform win32-msvc
         -prefix "..\qt-release" -confirm-license
         -no-feature-accessibility
         -no-feature-valgrind
@@ -73,8 +74,14 @@ jobs:
       working-directory: ${{ runner.workspace }}/qt-build
       run: cmake --build . --parallel 4
 
-    - name: install qt to temp dir
+    - name: install release qt to temp dir
       working-directory: ${{ runner.workspace }}/qt-build
+      if: startsWith(matrix.buildtype, 'release')
+      run: ninja install
+
+    - name: install debug and release qt to temp dir
+      working-directory: ${{ runner.workspace }}/qt-build
+      if: startsWith(matrix.buildtype, 'debug-and-release')
       run: |
         ninja install:Debug
         ninja install:Release
@@ -82,18 +89,18 @@ jobs:
     # Create archive of the pre-built Qt binaries
     - name: Package binaries
       working-directory: ${{ runner.workspace }}/qt-release
-      run: 7z a ${{ github.workspace }}\\qt6_682_${{ matrix.arch }}-msvc2022_static.zip .
+      run: 7z a ${{ github.workspace }}\\qt6_682_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}.zip .
 
     - name: Release
       uses: softprops/action-gh-release@v2.2.1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: qt6_682_${{ matrix.arch }}-msvc2022_static.zip
+        files: qt6_682_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}.zip
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4.6.0
       with:
         overwrite: true
-        name: qt6_682_${{ matrix.arch }}-msvc2022_static
+        name: qt6_682_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}
         path: ${{ runner.workspace }}/qt-release
 
