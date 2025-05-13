@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4.2.2
-    - uses: actions/setup-python@v5.4.0
+    - uses: actions/setup-python@v5.6.0
     - run: python --version
     - name: Setup the compiler target win64
       if: startsWith(matrix.arch, 'win64')
@@ -35,14 +35,14 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ runner.workspace }}/qt-source
-        key: qt-source-6.8.2
+        key: qt-source-6.8.3
 
     - name: Clone Qt repo and its submodules
       working-directory: ${{ runner.workspace }}
       if: steps.cache-qt-repo.outputs.cache-hit != 'true'
       run: |
         # Clone Qt6 repo
-        git clone git://code.qt.io/qt/qt5.git -b v6.8.2 --depth 1 qt-source
+        git clone git://code.qt.io/qt/qt5.git -b v6.8.3 --depth 1 qt-source
         cd qt-source
         git apply ${{ github.workspace }}/0001-shadow-clone-for-submodules.patch
         perl init-repository.pl --shallow
@@ -89,18 +89,18 @@ jobs:
     # Create archive of the pre-built Qt binaries
     - name: Package binaries
       working-directory: ${{ runner.workspace }}/qt-release
-      run: 7z a ${{ github.workspace }}\\qt6_682_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}.zip .
+      run: 7z a ${{ github.workspace }}\\qt6_683_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}.zip .
 
     - name: Release
-      uses: softprops/action-gh-release@v2.2.1
+      uses: softprops/action-gh-release@v2.2.2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: qt6_682_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}.zip
+        files: qt6_683_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}.zip
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4.6.0
+      uses: actions/upload-artifact@v4.6.2
       with:
         overwrite: true
-        name: qt6_682_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}
+        name: qt6_683_${{ matrix.arch }}-msvc2022_static-${{ matrix.buildtype }}
         path: ${{ runner.workspace }}/qt-release
 
