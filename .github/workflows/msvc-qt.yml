@@ -69,6 +69,7 @@ jobs:
         -no-feature-qtplugininfo
         -skip qtquick3dphysics,qtgraphs,qtquick3d,qtopcua,qtgrpc,qt3d,qtcanvas3d,qtdatavis3d,qtgamepad,qtcharts,qtconnectivity,qtmqtt,qtcoap,qtqa,qtdbus,qtremoteobjects,qtpim,qtspeech,qtfeedback,qtactiveqt,qtserialbus,tests
         -- -DFEATURE_cxx20=ON
+        -DCMAKE_CXX_FLAGS="/Zc:narrowing-"
 
     - name: build qt
       working-directory: ${{ runner.workspace }}/qt-build
